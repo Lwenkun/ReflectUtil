@@ -110,7 +110,7 @@ public class Expression {
                 Field field;
                 try {
                     field = recursive ? findFieldRecursive(nextOwnerType, fieldName)
-                            : nextOwnerType.getDeclaredField(node);
+                            : nextOwnerType.getDeclaredField(fieldName);
                 } catch (NoSuchFieldException e) {
                     throw new ReflectionException("failed to reflect field " + fieldName, e);
                 }
