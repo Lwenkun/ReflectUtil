@@ -44,9 +44,9 @@ Reflect.withStatic("android.app.ActivityThread", "sCurrentActivityThread.mH.:mCa
                 doYourWork();
                 return false;
             }
-}, Cast.of(Handler.Callback.class, Object.class));
+}, Values.wrappedAs(Handler.Callback.class, Object.class));
 ```
-`getClass()` returns the class representing the anonymous class we create. Then we call its `equals()` method with the param `Handler.Callback.class` as provided. In order to find the method `equals`, we have to point out the declaring type of it's param. We use `Cast.of` to do this. The first param we pass to it will be used when calling `equals` while the second indicates the declaring type of it's param, which is `Object` actually. The number inside the brackets indicates param count of `equals()`.
+`getClass()` returns the class representing the anonymous class we create. Then we call its `equals()` method with the param `Handler.Callback.class` as provided. In order to find the method `equals`, we have to point out the declaring type of it's param. We use `Values.wrappedAs` to do this. The first param we pass to it will be used when calling `equals` while the second indicates the declaring type of it's param, which is `Object` actually. The number inside the brackets indicates param count of `equals()`.
 
 If you run the code above, you will get the result `false` as expected because `Handler.Callback.class` does not equal the class object representing its anonymous sub class.
 
