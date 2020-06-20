@@ -4,9 +4,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-
-import java.util.HashMap;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -14,20 +11,7 @@ public class Expression {
 
     private static final Pattern METHOD_PATTERN = Pattern.compile("(.+)\\((\\d*)\\)");
 
-    private final static Map<Class<?>, Class<?>> sPrimitiveClassMap = new HashMap<>();
-
     private final ExprNode head;
-
-    static {
-        sPrimitiveClassMap.put(byte.class, Byte.class);
-        sPrimitiveClassMap.put(short.class, Short.class);
-        sPrimitiveClassMap.put(int.class, Integer.class);
-        sPrimitiveClassMap.put(long.class, Long.class);
-        sPrimitiveClassMap.put(float.class, Float.class);
-        sPrimitiveClassMap.put(double.class, Double.class);
-        sPrimitiveClassMap.put(boolean.class, Boolean.class);
-    }
-
 
     private Expression(ExprNode nodes) {
         this.head = nodes;
@@ -43,10 +27,8 @@ public class Expression {
             Object[] consumedParams = new Object[paramCount];
             System.arraycopy(params, paramIndex, consumedParams, 0, paramCount);
             for (int i = 0; i < paramCount; i++) {
-                if (consumedParams[i] instanceof Primitive) {
-                    consumedParams[i] = ((Primitive) consumedParams[i]).value();
-                } else if (consumedParams[i] instanceof Cast) {
-                    consumedParams[i] = ((Cast) consumedParams[i]).value();
+                if (consumedParams[i] instanceof StaticTypeValue) {
+                    consumedParams[i] = ((StaticTypeValue) consumedParams[i]).value();
                 }
             }
             paramIndex += paramCount;
@@ -85,10 +67,8 @@ public class Expression {
                 Class<?>[] paramType = new Class[paramCount];
                 for (int i = paramIndex, j = 0; i < paramIndex + paramCount; i++, j++) {
                     Object value = params[i];
-                    if (value instanceof Primitive) {
-                        paramType[j] = ((Primitive) value).type();
-                    } else if (value instanceof Cast) {
-                        paramType[j] = ((Cast) value).type();
+                    if (value instanceof StaticTypeValue) {
+                        paramType[j] = ((StaticTypeValue) value).type();
                     } else  {
                         paramType[j] = value.getClass();
                     }
@@ -102,6 +82,7 @@ public class Expression {
                 }
                 method.setAccessible(true);
                 newNode = new MethodNode(method);
+                paramIndex += paramCount;
                 nextOwnerType = method.getReturnType();
             } else {
                 String fieldName;
@@ -118,9 +99,10 @@ public class Expression {
                 newNode = new FieldNode(field, hasReplaceValue ? 1 : 0);
                 if (hasReplaceValue) {
                     Class<?> paramsType = params[paramIndex].getClass();
-                    if (!field.getType().isAssignableFrom(paramsType)) {
+                    if (!field.getType().isAssignableFrom(paramsType)
+                            && !ClassUtil.isPrimitiveAndWrapper(field.getType(), paramsType)) {
                         throw new IllegalArgumentException("param " + params[paramIndex]
-                                + " cannot assign to field " + field);
+                                + " cannot assign to field[" + field + "]");
                     }
                     paramIndex++;
                     nextOwnerType = paramsType;
@@ -146,7 +128,7 @@ public class Expression {
         Class<?> searchCls = cls;
         Class<?> finalClx = cls;
         while (method == null && searchCls != null) {
-            searchCls = mapToBoxType(searchCls);
+            searchCls = mapToWrapperIfNecessary(searchCls);
             try {
                 method = searchCls.getDeclaredMethod(methodName, paramTypes);
             } catch (NoSuchMethodException ignore) {
@@ -162,23 +144,13 @@ public class Expression {
     }
 
     @NotNull
-    private static Class<?> mapToBoxType(@NotNull Class<?> type) {
-        Class<?> boxType = sPrimitiveClassMap.get(type);
-        if (boxType == null) {
-            return type;
-        } else {
-            return boxType;
-        }
-    }
-
-    @NotNull
     private static Field findFieldRecursive(Class<?> cls, String fieldName)
             throws NoSuchFieldException {
         Field field = null;
         Class<?> searchCls = cls;
         Class<?> finalCls = cls;
         while (field == null && searchCls != null) {
-            searchCls = mapToBoxType(searchCls);
+            searchCls = mapToWrapperIfNecessary(searchCls);
             try {
                 field = searchCls.getDeclaredField(fieldName);
             } catch (NoSuchFieldException ignore) {
@@ -191,5 +163,10 @@ public class Expression {
                     + " to " + finalCls);
         }
         return field;
+    }
+
+    @NotNull
+    private static Class<?> mapToWrapperIfNecessary(@NotNull Class<?> type) {
+        return ClassUtil.isPrimitive(type) ? ClassUtil.wrapperOf(type) : type;
     }
 }
