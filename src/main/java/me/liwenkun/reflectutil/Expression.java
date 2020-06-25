@@ -1,7 +1,5 @@
 package me.liwenkun.reflectutil;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.regex.Matcher;
@@ -75,7 +73,7 @@ public class Expression {
                 }
                 Method method;
                 try {
-                    method = recursive ? findMethodRecursive(nextOwnerType, methodName, paramType)
+                    method = recursive ? ClassUtil.findMethodRecursive(nextOwnerType, methodName, paramType)
                             : nextOwnerType.getDeclaredMethod(methodName, paramType);
                 } catch (NoSuchMethodException e) {
                     throw new ReflectionException("failed to reflect method " + methodName, e);
@@ -90,7 +88,7 @@ public class Expression {
                 fieldName = (hasReplaceValue = node.startsWith(":")) ? node.substring(1) : node;
                 Field field;
                 try {
-                    field = recursive ? findFieldRecursive(nextOwnerType, fieldName)
+                    field = recursive ? ClassUtil.findFieldRecursive(nextOwnerType, fieldName)
                             : nextOwnerType.getDeclaredField(fieldName);
                 } catch (NoSuchFieldException e) {
                     throw new ReflectionException("failed to reflect field " + fieldName, e);
@@ -119,54 +117,5 @@ public class Expression {
             cur = newNode;
         }
         return new Expression(head);
-    }
-
-    @NotNull
-    private static Method findMethodRecursive(Class<?> cls, String methodName,
-                                              Class<?>... paramTypes) throws NoSuchMethodException {
-        Method method = null;
-        Class<?> searchCls = cls;
-        Class<?> finalClx = cls;
-        while (method == null && searchCls != null) {
-            searchCls = mapToWrapperIfNecessary(searchCls);
-            try {
-                method = searchCls.getDeclaredMethod(methodName, paramTypes);
-            } catch (NoSuchMethodException ignore) {
-                finalClx = searchCls;
-                searchCls = searchCls.getSuperclass();
-            }
-        }
-        if (method == null) {
-            throw new NoSuchMethodException("cannot find method " + methodName + " from " + cls
-                    + " to " + finalClx);
-        }
-        return method;
-    }
-
-    @NotNull
-    private static Field findFieldRecursive(Class<?> cls, String fieldName)
-            throws NoSuchFieldException {
-        Field field = null;
-        Class<?> searchCls = cls;
-        Class<?> finalCls = cls;
-        while (field == null && searchCls != null) {
-            searchCls = mapToWrapperIfNecessary(searchCls);
-            try {
-                field = searchCls.getDeclaredField(fieldName);
-            } catch (NoSuchFieldException ignore) {
-                finalCls = searchCls;
-                searchCls = searchCls.getSuperclass();
-            }
-        }
-        if (field == null) {
-            throw new NoSuchFieldException("cannot find field " + fieldName + " from " + cls
-                    + " to " + finalCls);
-        }
-        return field;
-    }
-
-    @NotNull
-    private static Class<?> mapToWrapperIfNecessary(@NotNull Class<?> type) {
-        return ClassUtil.isPrimitive(type) ? ClassUtil.wrapperOf(type) : type;
     }
 }

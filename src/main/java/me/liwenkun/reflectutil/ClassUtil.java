@@ -2,6 +2,8 @@ package me.liwenkun.reflectutil;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -57,5 +59,54 @@ class ClassUtil {
         } else {
             return false;
         }
+    }
+
+    @NotNull
+    static Method findMethodRecursive(Class<?> cls, String methodName,
+                                              Class<?>... paramTypes) throws NoSuchMethodException {
+        Method method = null;
+        Class<?> searchCls = cls;
+        Class<?> finalClx = cls;
+        while (method == null && searchCls != null) {
+            searchCls = mapToWrapperIfNecessary(searchCls);
+            try {
+                method = searchCls.getDeclaredMethod(methodName, paramTypes);
+            } catch (NoSuchMethodException ignore) {
+                finalClx = searchCls;
+                searchCls = searchCls.getSuperclass();
+            }
+        }
+        if (method == null) {
+            throw new NoSuchMethodException("cannot find method " + methodName + " from " + cls
+                    + " to " + finalClx);
+        }
+        return method;
+    }
+
+    @NotNull
+    static Field findFieldRecursive(Class<?> cls, String fieldName)
+            throws NoSuchFieldException {
+        Field field = null;
+        Class<?> searchCls = cls;
+        Class<?> finalCls = cls;
+        while (field == null && searchCls != null) {
+            searchCls = mapToWrapperIfNecessary(searchCls);
+            try {
+                field = searchCls.getDeclaredField(fieldName);
+            } catch (NoSuchFieldException ignore) {
+                finalCls = searchCls;
+                searchCls = searchCls.getSuperclass();
+            }
+        }
+        if (field == null) {
+            throw new NoSuchFieldException("cannot find field " + fieldName + " from " + cls
+                    + " to " + finalCls);
+        }
+        return field;
+    }
+
+    @NotNull
+    private static Class<?> mapToWrapperIfNecessary(@NotNull Class<?> type) {
+        return ClassUtil.isPrimitive(type) ? ClassUtil.wrapperOf(type) : type;
     }
 }
